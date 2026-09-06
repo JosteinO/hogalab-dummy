@@ -1,6 +1,6 @@
 # Copy to .github/workflows/deploy.yml in your project.
-# Push to main -> test env. Manual run or tag v* -> prod env.
-# Project needs a docker-compose.yml; each service exposed via Caddy gets labels (see README).
+# Push to main -> test env. Tag v* or manual run -> prod env (or choose).
+# Project needs a docker-compose.yml; services exposed via Caddy get labels (see hosting/macbook/README.md).
 name: deploy
 on:
   push:
@@ -8,20 +8,28 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      env: { description: "test or prod", default: "prod" }
+      target:
+        description: "test or prod"
+        default: "prod"
 jobs:
   deploy:
     runs-on: [self-hosted, hogalab]
-    env:
-      APP: ${{ github.event.repository.name }}
-      ENV: ${{ github.event.inputs.env || (startsWith(github.ref, 'refs/tags/') && 'prod' || 'test') }}
     steps:
       - uses: actions/checkout@v4
       - name: Deploy
+        env:
+          APP: ${{ github.event.repository.name }}
+          INPUT_TARGET: ${{ github.event.inputs.target }}
+          REF: ${{ github.ref }}
         run: |
-          TARGET=~/hogalab/deploy/$APP/$ENV
+          set -euo pipefail
+          if [ -n "$INPUT_TARGET" ]; then ENV="$INPUT_TARGET"
+          elif [[ "$REF" == refs/tags/* ]]; then ENV=prod
+          else ENV=test; fi
+          TARGET="$HOME/hogalab/deploy/$APP/$ENV"
+          echo "Deploying $APP to $ENV at $TARGET"
           mkdir -p "$TARGET" && rsync -a --delete --exclude .git ./ "$TARGET"/
           cd "$TARGET"
-          [ -f ~/hogalab/deploy/$APP/$ENV.env ] && cp ~/hogalab/deploy/$APP/$ENV.env .env || true
+          [ -f "$HOME/hogalab/deploy/$APP/$ENV.env" ] && cp "$HOME/hogalab/deploy/$APP/$ENV.env" .env || true
           docker compose -p "$APP-$ENV" up -d --build --remove-orphans
           docker image prune -f

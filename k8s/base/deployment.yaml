@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hogalab-dummy
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: hogalab-dummy }
+  template:
+    metadata:
+      labels: { app: hogalab-dummy }
+    spec:
+      containers:
+        - name: web
+          image: hogalab/hogalab-dummy
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 3000 }]
+          envFrom:
+            - configMapRef: { name: hogalab-dummy-config, optional: true }
+            - secretRef: { name: hogalab-dummy-secrets, optional: true }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hogalab-dummy
+spec:
+  selector: { app: hogalab-dummy }
+  ports: [{ port: 80, targetPort: 3000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hogalab-dummy
+spec:
+  rules:
+    - host: hogalab-dummy.localhost   # overridden per env
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: hogalab-dummy, port: { number: 80 } } }

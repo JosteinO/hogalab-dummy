@@ -1,6 +1,5 @@
-# Copy to .github/workflows/deploy.yml in your project.
-# Push to main -> test env. Tag v* or manual run -> prod env (or choose).
-# Project needs a docker-compose.yml; services exposed via Caddy get labels (see hosting/macbook/README.md).
+# Copy to .github/workflows/deploy.yml in your project. Project needs k8s/base + k8s/overlays/{test,prod}
+# (see hosting/macbook/templates/k8s). Push to main -> test. Tag v* or manual run -> prod (or chosen target).
 name: deploy
 on:
   push:
@@ -21,15 +20,11 @@ jobs:
           APP: ${{ github.event.repository.name }}
           INPUT_TARGET: ${{ github.event.inputs.target }}
           REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ -n "$INPUT_TARGET" ]; then ENV="$INPUT_TARGET"
-          elif [[ "$REF" == refs/tags/* ]]; then ENV=prod
-          else ENV=test; fi
-          TARGET="$HOME/hogalab/deploy/$APP/$ENV"
-          echo "Deploying $APP to $ENV at $TARGET"
-          mkdir -p "$TARGET" && rsync -a --delete --exclude .git ./ "$TARGET"/
-          cd "$TARGET"
-          [ -f "$HOME/hogalab/deploy/$APP/$ENV.env" ] && cp "$HOME/hogalab/deploy/$APP/$ENV.env" .env || true
-          docker compose -p "$APP-$ENV" up -d --build --remove-orphans
-          docker image prune -f
+          if [ -n "$INPUT_TARGET" ]; then TARGET_ENV="$INPUT_TARGET"
+          elif [[ "$REF" == refs/tags/* ]]; then TARGET_ENV=prod
+          else TARGET_ENV=test; fi
+          echo "Deploying $APP to $TARGET_ENV"
+          "$HOME/hogalab/hosting/macbook/bin/k8s-deploy.sh" "$APP" "$TARGET_ENV" "${SHA:0:12}"

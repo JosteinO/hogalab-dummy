@@ -1,0 +1,12 @@
+namespace: prod
+resources: [../../base]
+configMapGenerator:
+  - name: hogalab-dummy-config
+    literals: [APP_ENV=prod]
+generatorOptions: { disableNameSuffixHash: true }
+patches:
+  - target: { kind: Ingress, name: hogalab-dummy }
+    patch: |
+      - op: replace
+        path: /spec/rules/0/host
+        value: hogalab-dummy.localhost

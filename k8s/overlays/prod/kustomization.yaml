@@ -9,4 +9,4 @@ patches:
     patch: |
       - op: replace
         path: /spec/rules/0/host
-        value: hogalab-dummy.localhost
+        value: dummy.hogalab.com

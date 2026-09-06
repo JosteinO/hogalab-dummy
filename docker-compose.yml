@@ -1,0 +1,13 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    environment:
+      - APP_ENV=${APP_ENV:-test}
+    networks: [default, proxy]
+    labels:
+      caddy: ${APP_HOST:-dummy.local}
+      caddy.reverse_proxy: "{{upstreams 3000}}"
+networks:
+  proxy:
+    external: true
